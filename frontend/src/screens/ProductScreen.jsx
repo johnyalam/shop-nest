@@ -6,6 +6,7 @@ import Rating from '../components/Rating'
 import Loader from '../components/Loader'
 import Message from '../components/Message'
 import { getProductDetails } from '../slices/productSlice'
+import { addToCart } from '../slices/cartSlice'
 
 function ProductScreen() {
   const { id } = useParams()
@@ -19,9 +20,17 @@ function ProductScreen() {
     dispatch(getProductDetails(id))
   }, [dispatch, id])
 
-  const addToCartHandler = () => {
-    navigate(`/cart/${id}?qty=${qty}`)
-  }
+const addToCartHandler = () => {
+  dispatch(addToCart({
+    product: product._id,
+    name: product.name,
+    image: product.image,
+    price: Number(product.price),
+    countInStock: product.countInStock,
+    qty,
+  }))
+  navigate('/cart')
+}
 
   if (loading || (!product && !error)) return <Loader />
   if (error) return <Message variant="danger">{error}</Message>

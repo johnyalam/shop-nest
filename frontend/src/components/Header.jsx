@@ -1,7 +1,11 @@
-import { Navbar, Nav, Container } from 'react-bootstrap'
+import { Navbar, Nav, Container, Badge } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 
 function Header() {
+  const { cartItems } = useSelector((state) => state.cart)
+  const cartCount = cartItems.reduce((acc, item) => acc + item.qty, 0)
+
   return (
     <header>
       <Navbar bg="dark" variant="dark" expand="lg" collapseOnSelect>
@@ -12,6 +16,9 @@ function Header() {
             <Nav className="ms-auto">
               <Nav.Link as={Link} to="/cart">
                 <i className="fas fa-shopping-cart me-1"></i>Cart
+                {cartCount > 0 && (
+                  <Badge pill bg="success" className="ms-1">{cartCount}</Badge>
+                )}
               </Nav.Link>
               <Nav.Link as={Link} to="/login">
                 <i className="fas fa-user me-1"></i>Login
