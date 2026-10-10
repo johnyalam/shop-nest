@@ -1,20 +1,27 @@
 import { configureStore } from '@reduxjs/toolkit'
 import productReducer from './slices/productSlice'
 import cartReducer from './slices/cartSlice'
+import userReducer from './slices/userSlice'
 
 const store = configureStore({
   reducer: {
     products: productReducer,
     cart: cartReducer,
+    user: userReducer,
   },
 })
 
-// Every time the store changes, save the cart to localStorage
 store.subscribe(() => {
   try {
-    localStorage.setItem('cart', JSON.stringify(store.getState().cart))
+    const { cart, user } = store.getState()
+    localStorage.setItem('cart', JSON.stringify(cart))
+    if (user.userInfo) {
+      localStorage.setItem('userInfo', JSON.stringify(user.userInfo))
+    } else {
+      localStorage.removeItem('userInfo')
+    }
   } catch {
-    // storage unavailable: the cart just won't persist
+    // storage unavailable
   }
 })
 
