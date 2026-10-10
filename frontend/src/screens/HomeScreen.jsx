@@ -1,21 +1,18 @@
-import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { Row, Col } from 'react-bootstrap'
 import Product from '../components/Product'
 import Loader from '../components/Loader'
 import Message from '../components/Message'
+import { listProducts } from '../slices/productSlice'
 
 function HomeScreen() {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const dispatch = useDispatch()
+  const { products, loading, error } = useSelector((state) => state.products.list)
 
   useEffect(() => {
-    axios.get('/api/products/')
-      .then(({ data }) => setProducts(data.products))
-      .catch((err) => setError(err.response?.data?.detail || err.message))
-      .finally(() => setLoading(false))
-  }, [])
+    dispatch(listProducts())
+  }, [dispatch])
 
   return (
     <>
