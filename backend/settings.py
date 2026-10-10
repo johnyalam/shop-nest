@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from decimal import Decimal
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -138,3 +139,9 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# ShopNest pricing (prices are VAT-inclusive)
+SHOP_VAT_RATE = Decimal('0.255')
+SHOP_SHIPPING_PRICE = Decimal('5.90')
+SHOP_FREE_SHIPPING_FROM = Decimal('100.00')
+SHOP_PAYMENT_METHODS = ['PayPal']

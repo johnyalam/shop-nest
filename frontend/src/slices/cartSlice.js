@@ -1,6 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-// Load the saved cart (if any) when the app starts
 const loadCart = () => {
   try {
     return JSON.parse(localStorage.getItem('cart')) || {}
@@ -13,6 +12,8 @@ const saved = loadCart()
 
 const initialState = {
   cartItems: saved.cartItems || [],
+  shippingAddress: saved.shippingAddress || {},
+  paymentMethod: saved.paymentMethod || '',
 }
 
 const cartSlice = createSlice({
@@ -23,7 +24,6 @@ const cartSlice = createSlice({
       const item = action.payload
       const existing = state.cartItems.find((x) => x.product === item.product)
       if (existing) {
-        // Already in the cart: add to the quantity, but never above stock
         existing.qty = Math.min(existing.qty + item.qty, item.countInStock)
       } else {
         state.cartItems.push(item)
@@ -37,11 +37,20 @@ const cartSlice = createSlice({
     removeFromCart(state, action) {
       state.cartItems = state.cartItems.filter((x) => x.product !== action.payload)
     },
+    saveShippingAddress(state, action) {
+      state.shippingAddress = action.payload
+    },
+    savePaymentMethod(state, action) {
+      state.paymentMethod = action.payload
+    },
     clearCart(state) {
       state.cartItems = []
     },
   },
 })
 
-export const { addToCart, updateCartQty, removeFromCart, clearCart } = cartSlice.actions
+export const {
+  addToCart, updateCartQty, removeFromCart,
+  saveShippingAddress, savePaymentMethod, clearCart,
+} = cartSlice.actions
 export default cartSlice.reducer
