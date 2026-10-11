@@ -2,6 +2,7 @@ import { Navbar, Nav, Container, Badge, NavDropdown } from 'react-bootstrap'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../slices/userSlice'
+import SearchBox from './SearchBox'
 
 function Header() {
   const dispatch = useDispatch()
@@ -22,6 +23,7 @@ function Header() {
           <Navbar.Brand as={Link} to="/">ShopNest</Navbar.Brand>
           <Navbar.Toggle aria-controls="main-navbar" />
           <Navbar.Collapse id="main-navbar">
+            <SearchBox />
             <Nav className="ms-auto">
               <Nav.Link as={Link} to="/cart">
                 <i className="fas fa-shopping-cart me-1"></i>Cart

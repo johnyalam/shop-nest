@@ -1,25 +1,28 @@
 import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { Table, Button, Row, Col } from 'react-bootstrap'
 import Loader from '../components/Loader'
 import Message from '../components/Message'
 import { listProducts } from '../slices/productSlice'
-import {
-  createProduct, deleteProduct, clearAdminProductErrors,
-} from '../slices/adminProductSlice'
+import { createProduct, deleteProduct, clearAdminProductErrors, } from '../slices/adminProductSlice'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import Paginate from '../components/Paginate'
 
 function ProductListScreen() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
 
-  const { products, loading, error } = useSelector((state) => state.products.list)
+  const [searchParams] = useSearchParams()
+  const page = Number(searchParams.get('page')) || 1
+  const { products, page: currentPage, pages, loading, error } = useSelector((state) => state.products.list)
+
   const { loading: working, error: adminError } = useSelector((state) => state.adminProducts)
+  
 
   useEffect(() => {
     dispatch(clearAdminProductErrors())
-    dispatch(listProducts())
-  }, [dispatch])
+    dispatch(listProducts({ page }))
+  }, [dispatch, page])
 
   const createHandler = () => {
     dispatch(createProduct())
@@ -32,7 +35,7 @@ function ProductListScreen() {
     if (window.confirm(`Delete "${product.name}"? This cannot be undone.`)) {
       dispatch(deleteProduct(product._id))
         .unwrap()
-        .then(() => dispatch(listProducts()))
+        .then(() => dispatch(listProducts({ page })))
         .catch(() => {})
     }
   }
@@ -55,6 +58,7 @@ function ProductListScreen() {
       ) : error ? (
         <Message variant="danger">{error}</Message>
       ) : (
+        <>
         <Table striped bordered hover responsive className="table-sm">
           <thead>
             <tr>
@@ -90,7 +94,10 @@ function ProductListScreen() {
             ))}
           </tbody>
         </Table>
+        <Paginate pages={pages} page={currentPage} basePath="/admin/productlist" />
+        </>
       )}
+      
     </>
   )
 }

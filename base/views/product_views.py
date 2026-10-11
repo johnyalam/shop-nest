@@ -10,8 +10,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
-
-from base.models import Product
+from decimal import Decimal
+from django.db import transaction
+from django.db.models import Avg, Count, Q
+from PIL import Image
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from base.models import Product, Review, OrderItem
 from base.serializers import ProductSerializer, ProductUpdateSerializer
 
 ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
@@ -28,7 +32,9 @@ def not_found():
 def getProducts(request):
     keyword = request.query_params.get('keyword', '')
     products = (Product.objects
-                .filter(name__icontains=keyword)
+                .filter(Q(name__icontains=keyword) |
+                        Q(brand__icontains=keyword) |
+                        Q(category__icontains=keyword))
                 .prefetch_related('review_set')
                 .order_by('-createdAt'))
 
@@ -48,6 +54,57 @@ def getProducts(request):
         'pages': paginator.num_pages,
     })
 
+@api_view(['GET'])
+def getTopProducts(request):
+    products = (Product.objects
+                .filter(rating__gte=4)
+                .prefetch_related('review_set')
+                .order_by('-rating', '-numReviews')[:5])
+    return Response(ProductSerializer(products, many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createProductReview(request, pk):
+    product = Product.objects.filter(_id=pk).first()
+    if product is None:
+        return not_found()
+
+    user = request.user
+
+    if product.review_set.filter(user=user).exists():
+        return bad_request('You have already reviewed this product')
+
+    has_bought = OrderItem.objects.filter(
+        product=product, order__user=user, order__isPaid=True).exists()
+    if not has_bought:
+        return bad_request('You can only review products you have purchased')
+
+    try:
+        rating = int(request.data.get('rating'))
+    except (TypeError, ValueError):
+        rating = 0
+    if not 1 <= rating <= 5:
+        return bad_request('Please select a rating from 1 to 5')
+
+    comment = (request.data.get('comment') or '').strip()
+    if len(comment) > 1000:
+        return bad_request('Comment must be 1000 characters or fewer')
+
+    with transaction.atomic():
+        Review.objects.create(
+            product=product,
+            user=user,
+            name=user.first_name or 'ShopNest customer',
+            rating=rating,
+            comment=comment,
+        )
+        stats = product.review_set.aggregate(avg=Avg('rating'), count=Count('pk'))
+        product.rating = Decimal(str(round(stats['avg'], 2)))
+        product.numReviews = stats['count']
+        product.save(update_fields=['rating', 'numReviews'])
+
+    return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
 def getProduct(request, pk):

@@ -32,3 +32,12 @@ print('Make myself admin:', status, '(expect 403 - this was the original bug)')
 
 status, _ = call('DELETE', f'users/{my_id}/delete/', token=token)
 print('Delete a user:', status, '(expect 403)')
+
+status, _ = call('POST', 'products/create/', {}, token)
+print('Create product as non-admin:', status, '(expect 403)')
+
+status, _ = call('PUT', 'orders/1/deliver/', {}, token)
+print('Deliver order as non-admin:', status, '(expect 403)')
+
+status, _ = call('POST', 'products/1/upload/')
+print('Upload image while logged out:', status, '(expect 401 - original allowed this!)')
