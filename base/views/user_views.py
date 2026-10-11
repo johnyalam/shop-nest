@@ -9,14 +9,25 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from base.serializers import UserSerializer, UserSerializerWithToken
 
 
 def bad_request(message):
     return Response({'detail': message}, status=status.HTTP_400_BAD_REQUEST)
 
-
+def set_email(user, email):
+    """Change user's email if valid and free. Returns an error message, or None."""
+    if not email or email == user.email:
+        return None
+    try:
+        validate_email(email)
+    except ValidationError:
+        return 'Enter a valid email address'
+    if User.objects.filter(username=email).exclude(pk=user.pk).exists():
+        return 'User with this email already exists'
+    user.email = email
+    return None
 # ---------- Login ----------
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -79,14 +90,9 @@ def updateUserProfile(request):
     if name:
         user.first_name = name
 
-    if email and email != user.email:
-        try:
-            validate_email(email)
-        except ValidationError:
-            return bad_request('Enter a valid email address')
-        if User.objects.filter(username=email).exclude(pk=user.pk).exists():
-            return bad_request('User with this email already exists')
-        user.email = email
+    error = set_email(user, email)
+    if error:
+        return bad_request(error)
 
     if password:
         try:
@@ -97,3 +103,68 @@ def updateUserProfile(request):
 
     user.save()
     return Response(UserSerializerWithToken(user).data)
+
+# ---------- Admin only ----------
+
+def get_user_or_404(pk):
+    return User.objects.filter(pk=pk).first()
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def getUsers(request):
+    users = User.objects.order_by('-date_joined')
+    return Response(UserSerializer(users, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def getUserById(request, pk):
+    user = get_user_or_404(pk)
+    if user is None:
+        return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(UserSerializer(user).data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def updateUser(request, pk):
+    user = get_user_or_404(pk)
+    if user is None:
+        return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    name = (request.data.get('name') or '').strip()
+    email = (request.data.get('email') or '').strip().lower()
+
+    if name:
+        user.first_name = name
+
+    error = set_email(user, email)
+    if error:
+        return bad_request(error)
+
+    if 'isAdmin' in request.data:
+        is_admin = request.data.get('isAdmin') is True
+        if user == request.user and not is_admin:
+            return bad_request('You cannot remove your own admin rights')
+        user.is_staff = is_admin
+
+    user.save()
+    return Response(UserSerializer(user).data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def deleteUser(request, pk):
+    user = get_user_or_404(pk)
+    if user is None:
+        return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    if user == request.user:
+        return bad_request('You cannot delete your own account')
+    if user.is_superuser:
+        return bad_request('Superusers can only be deleted in the Django admin panel')
+
+    user.delete()
+    return Response({'detail': 'User deleted'})
+
+    
