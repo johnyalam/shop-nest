@@ -10,7 +10,7 @@ from base.models import Product, Order, OrderItem, ShippingAddress
 from base.serializers import OrderSerializer
 from django.utils import timezone
 from base.paypal import PayPalError, create_paypal_order, capture_paypal_order
-
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 class OrderError(Exception):
     """A problem with the customer's order (shown to them as a message)."""
@@ -196,4 +196,32 @@ def capturePayPalOrder(request, pk):
         order.paymentCaptureId = capture.get('id')
         order.save()
 
+    return Response(OrderSerializer(order).data)
+
+# ---------- Admin only ----------
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def getOrders(request):
+    orders = (Order.objects
+              .select_related('user', 'shippingaddress')
+              .prefetch_related('orderitem_set')
+              .order_by('-createdAt'))
+    return Response(OrderSerializer(orders, many=True).data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAdminUser])
+def updateOrderToDelivered(request, pk):
+    order = Order.objects.filter(_id=pk).first()
+    if order is None:
+        return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+    if not order.isPaid:
+        return bad_request('Order has not been paid yet')
+    if order.isDelivered:
+        return bad_request('Order is already marked as delivered')
+
+    order.isDelivered = True
+    order.deliveredAt = timezone.now()
+    order.save()
     return Response(OrderSerializer(order).data)

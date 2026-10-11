@@ -3,6 +3,7 @@ import axios from 'axios'
 import { getError } from '../utils/getError'
 import { authConfig } from '../utils/authConfig'
 import { clearCart } from './cartSlice'
+import { logout } from './userSlice'
 
 export const createOrder = createAsyncThunk(
   'orders/create',
@@ -54,11 +55,37 @@ export const listMyOrders = createAsyncThunk(
   }
 )
 
+export const listAllOrders = createAsyncThunk(
+  'orders/all',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.get('/api/orders/', authConfig(getState))
+      return data
+    } catch (err) {
+      return rejectWithValue(getError(err))
+    }
+  }
+)
+
+export const deliverOrder = createAsyncThunk(
+  'orders/deliver',
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.put(`/api/orders/${id}/deliver/`, {}, authConfig(getState))
+      return data
+    } catch (err) {
+      return rejectWithValue(getError(err))
+    }
+  }
+)
+
 const initialState = {
   create: { order: null, loading: false, error: null },
   details: { order: null, loading: false, error: null },
   pay: { loading: false, error: null },
   mine: { orders: [], loading: false, error: null },
+  all: { orders: [], loading: false, error: null },
+  deliver: { loading: false, error: null },
 }
 
 const orderSlice = createSlice({
@@ -122,6 +149,33 @@ const orderSlice = createSlice({
         state.mine.loading = false
         state.mine.error = action.payload
       })
+            // all orders (admin)
+      .addCase(listAllOrders.pending, (state) => {
+        state.all.loading = true
+        state.all.error = null
+      })
+      .addCase(listAllOrders.fulfilled, (state, action) => {
+        state.all.loading = false
+        state.all.orders = action.payload
+      })
+      .addCase(listAllOrders.rejected, (state, action) => {
+        state.all.loading = false
+        state.all.error = action.payload
+      })
+      // deliver (admin)
+      .addCase(deliverOrder.pending, (state) => {
+        state.deliver = { loading: true, error: null }
+      })
+      .addCase(deliverOrder.fulfilled, (state, action) => {
+        state.deliver.loading = false
+        state.details.order = action.payload
+      })
+      .addCase(deliverOrder.rejected, (state, action) => {
+        state.deliver.loading = false
+        state.deliver.error = action.payload
+      })
+      // forget orders on logout
+      .addCase(logout, () => initialState)
   },
 })
 

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import axios from 'axios'
-import { Row, Col, ListGroup, Image, Card } from 'react-bootstrap'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 import Message from '../components/Message'
 import Loader from '../components/Loader'
-import { getOrderDetails, payOrder } from '../slices/orderSlice'
 import { VAT_RATE } from '../config'
+import { Row, Col, ListGroup, Image, Card, Button } from 'react-bootstrap'
+import { getOrderDetails, payOrder, deliverOrder } from '../slices/orderSlice'
 
 const formatDate = (iso) => new Date(iso).toLocaleString('fi-FI')
 
@@ -18,6 +18,7 @@ function OrderScreen() {
   const { userInfo } = useSelector((state) => state.user)
   const { order, loading, error } = useSelector((state) => state.orders.details)
   const { loading: payLoading, error: payError } = useSelector((state) => state.orders.pay)
+  const { loading: deliverLoading, error: deliverError } = useSelector((state) => state.orders.deliver)
 
   const [paypalConfig, setPaypalConfig] = useState(null)
   const [paypalError, setPaypalError] = useState(null)
@@ -158,6 +159,15 @@ function OrderScreen() {
                       />
                     </PayPalScriptProvider>
                   )}
+                </ListGroup.Item>
+              )}
+              {userInfo.isAdmin && order.isPaid && !order.isDelivered && (
+                <ListGroup.Item>
+                  {deliverError && <Message variant="danger">{deliverError}</Message>}
+                  <Button type="button" className="w-100" disabled={deliverLoading}
+                    onClick={() => dispatch(deliverOrder(order._id))}>
+                    Mark As Delivered
+                  </Button>
                 </ListGroup.Item>
               )}
             </ListGroup>

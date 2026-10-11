@@ -76,3 +76,23 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_user(self, obj):
         return UserSerializer(obj.user).data if obj.user else None
+
+class ProductUpdateSerializer(serializers.ModelSerializer):
+    """Only the fields an admin may edit - with validation."""
+
+    class Meta:
+        model = Product
+        fields = ['name', 'price', 'brand', 'category', 'countInStock', 'description']
+        extra_kwargs = {
+            'name': {'required': True, 'allow_null': False, 'allow_blank': False},
+        }
+
+    def validate_price(self, value):
+        if value is None or value < 0:
+            raise serializers.ValidationError('Price must be 0 or more')
+        return value
+
+    def validate_countInStock(self, value):
+        if value is None or value < 0:
+            raise serializers.ValidationError('Stock must be 0 or more')
+        return value
