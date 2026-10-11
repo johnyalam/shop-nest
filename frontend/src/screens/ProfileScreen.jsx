@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { Form, Button, Row, Col } from 'react-bootstrap'
+import { Form, Button, Row, Col, Table } from 'react-bootstrap'
 import Loader from '../components/Loader'
 import Message from '../components/Message'
 import { updateProfile, clearUserMessages } from '../slices/userSlice'
+import { listMyOrders } from '../slices/orderSlice'
 
 function ProfileScreen() {
   const dispatch = useDispatch()
@@ -14,9 +16,12 @@ function ProfileScreen() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [formError, setFormError] = useState(null)
+  const { orders, loading: ordersLoading, error: ordersError } =
+  useSelector((state) => state.orders.mine)
 
   useEffect(() => {
     dispatch(clearUserMessages())
+    dispatch(listMyOrders())
   }, [dispatch])
 
   const submitHandler = (e) => {
@@ -73,8 +78,49 @@ function ProfileScreen() {
 
       <Col md={9}>
         <h2>My Orders</h2>
-        <Message>Your orders will appear here.</Message>
-      </Col>
+        {ordersLoading ? (
+          <Loader />
+        ) : ordersError ? (
+          <Message variant="danger">{ordersError}</Message>
+        ) : orders.length === 0 ? (
+          <Message>You have no orders yet. <Link to="/">Start shopping</Link></Message>
+        ) : (
+          <Table striped responsive className="table-sm">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Delivered</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => (
+                <tr key={order._id}>
+                  <td>{order._id}</td>
+                  <td>{order.createdAt.substring(0, 10)}</td>
+                  <td>€{order.totalPrice}</td>
+                  <td>
+                    {order.isPaid ? order.paidAt.substring(0, 10)
+                      : <i className="fas fa-times" style={{ color: 'red' }}></i>}
+                  </td>
+                  <td>
+                    {order.isDelivered ? order.deliveredAt.substring(0, 10)
+                      : <i className="fas fa-times" style={{ color: 'red' }}></i>}
+                  </td>
+                  <td>
+                    <Button as={Link} to={`/order/${order._id}`} variant="light" size="sm">
+                      Details
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+</Col>
     </Row>
   )
 }

@@ -36,6 +36,8 @@ class Review(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     paymentMethod = models.CharField(max_length=200, null=True, blank=True)
+    paymentId = models.CharField(max_length=100, null=True, blank=True)        # PayPal order ID
+    paymentCaptureId = models.CharField(max_length=100, null=True, blank=True) # PayPal capture ID
     taxPrice = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
     shippingPrice = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
     totalPrice = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)

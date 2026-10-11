@@ -17,8 +17,48 @@ export const createOrder = createAsyncThunk(
   }
 )
 
+export const getOrderDetails = createAsyncThunk(
+  'orders/details',
+  async (id, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.get(`/api/orders/${id}/`, authConfig(getState))
+      return data
+    } catch (err) {
+      return rejectWithValue(getError(err))
+    }
+  }
+)
+
+export const payOrder = createAsyncThunk(
+  'orders/pay',
+  async ({ orderId, paypalOrderId }, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.post(
+        `/api/orders/${orderId}/paypal/capture/`, { paypalOrderId }, authConfig(getState))
+      return data
+    } catch (err) {
+      return rejectWithValue(getError(err))
+    }
+  }
+)
+
+export const listMyOrders = createAsyncThunk(
+  'orders/mine',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { data } = await axios.get('/api/orders/myorders/', authConfig(getState))
+      return data
+    } catch (err) {
+      return rejectWithValue(getError(err))
+    }
+  }
+)
+
 const initialState = {
   create: { order: null, loading: false, error: null },
+  details: { order: null, loading: false, error: null },
+  pay: { loading: false, error: null },
+  mine: { orders: [], loading: false, error: null },
 }
 
 const orderSlice = createSlice({
@@ -31,6 +71,7 @@ const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // create
       .addCase(createOrder.pending, (state) => {
         state.create.loading = true
         state.create.error = null
@@ -42,6 +83,44 @@ const orderSlice = createSlice({
       .addCase(createOrder.rejected, (state, action) => {
         state.create.loading = false
         state.create.error = action.payload
+      })
+      // details
+      .addCase(getOrderDetails.pending, (state) => {
+        state.details = { order: null, loading: true, error: null }
+        state.pay = initialState.pay
+      })
+      .addCase(getOrderDetails.fulfilled, (state, action) => {
+        state.details.loading = false
+        state.details.order = action.payload
+      })
+      .addCase(getOrderDetails.rejected, (state, action) => {
+        state.details.loading = false
+        state.details.error = action.payload
+      })
+      // pay
+      .addCase(payOrder.pending, (state) => {
+        state.pay = { loading: true, error: null }
+      })
+      .addCase(payOrder.fulfilled, (state, action) => {
+        state.pay.loading = false
+        state.details.order = action.payload // now isPaid: true
+      })
+      .addCase(payOrder.rejected, (state, action) => {
+        state.pay.loading = false
+        state.pay.error = action.payload
+      })
+      // my orders
+      .addCase(listMyOrders.pending, (state) => {
+        state.mine.loading = true
+        state.mine.error = null
+      })
+      .addCase(listMyOrders.fulfilled, (state, action) => {
+        state.mine.loading = false
+        state.mine.orders = action.payload
+      })
+      .addCase(listMyOrders.rejected, (state, action) => {
+        state.mine.loading = false
+        state.mine.error = action.payload
       })
   },
 })

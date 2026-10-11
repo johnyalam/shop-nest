@@ -2,14 +2,14 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.db import transaction
-
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
 from base.models import Product, Order, OrderItem, ShippingAddress
 from base.serializers import OrderSerializer
+from django.utils import timezone
+from base.paypal import PayPalError, create_paypal_order, capture_paypal_order
 
 
 class OrderError(Exception):
@@ -123,5 +123,77 @@ def getOrderById(request, pk):
     if not request.user.is_staff and order.user != request.user:
         return Response({'detail': 'Not authorized to view this order'},
                         status=status.HTTP_403_FORBIDDEN)
+
+    return Response(OrderSerializer(order).data)
+
+
+def paypal_error(e):
+    return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+@api_view(['GET'])
+def getPayPalConfig(request):
+    # Client ID is public - it's needed to show the PayPal button
+    return Response({'clientId': settings.PAYPAL_CLIENT_ID, 'currency': settings.SHOP_CURRENCY})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createPayPalOrder(request, pk):
+    order = Order.objects.filter(_id=pk, user=request.user).first()
+    if order is None:
+        return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+    if order.isPaid:
+        return bad_request('Order is already paid')
+
+    try:
+        paypal_id = create_paypal_order(order)
+    except PayPalError as e:
+        return paypal_error(e)
+
+    order.paymentId = paypal_id
+    order.save(update_fields=['paymentId'])
+    return Response({'id': paypal_id})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def capturePayPalOrder(request, pk):
+    paypal_id = request.data.get('paypalOrderId')
+
+    with transaction.atomic():
+        order = Order.objects.select_for_update().filter(_id=pk, user=request.user).first()
+        if order is None:
+            return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+        if order.isPaid:
+            return bad_request('Order is already paid')
+        if not paypal_id or paypal_id != order.paymentId:
+            return bad_request('This payment does not belong to this order')
+
+        try:
+            result = capture_paypal_order(paypal_id)
+        except PayPalError as e:
+            return paypal_error(e)
+
+        try:
+            capture = result['purchase_units'][0]['payments']['captures'][0]
+            amount = capture['amount']
+            paid_value = Decimal(amount['value'])
+        except (KeyError, IndexError, TypeError, ArithmeticError):
+            return paypal_error('Unexpected response from PayPal')
+
+        verified = (
+            result.get('status') == 'COMPLETED'
+            and capture.get('status') == 'COMPLETED'
+            and amount.get('currency_code') == settings.SHOP_CURRENCY
+            and paid_value == order.totalPrice
+        )
+        if not verified:
+            return bad_request('Payment could not be verified. Please contact us.')
+
+        order.isPaid = True
+        order.paidAt = timezone.now()
+        order.paymentCaptureId = capture.get('id')
+        order.save()
 
     return Response(OrderSerializer(order).data)

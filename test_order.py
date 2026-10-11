@@ -38,3 +38,6 @@ print('VAT included:', order.get('taxPrice'))
 
 status, _ = call('GET', f"orders/{order.get('_id')}/")
 print('View order without token:', status, '(should be 401)')
+
+status, data = call('PUT', f"orders/{order.get('_id')}/pay/", {}, token)
+print('Old /pay/ endpoint:', status, '(should be 404 or 405, not 200)')

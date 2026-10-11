@@ -13,9 +13,13 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from decimal import Decimal
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -145,3 +149,9 @@ SHOP_VAT_RATE = Decimal('0.255')
 SHOP_SHIPPING_PRICE = Decimal('5.90')
 SHOP_FREE_SHIPPING_FROM = Decimal('100.00')
 SHOP_PAYMENT_METHODS = ['PayPal']
+
+SHOP_CURRENCY = 'EUR'
+
+PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID', '')
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET', '')
+PAYPAL_API_BASE = os.environ.get('PAYPAL_API_BASE', 'https://api-m.sandbox.paypal.com')
